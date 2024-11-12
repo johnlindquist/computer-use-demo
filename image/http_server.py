@@ -3,6 +3,8 @@ import socket
 import base64
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from functools import partial
+import urllib.request
+from urllib.error import URLError
 
 
 class AuthHandler(SimpleHTTPRequestHandler):
@@ -24,11 +26,30 @@ class AuthHandler(SimpleHTTPRequestHandler):
             auth_decoded = base64.b64decode(auth_header.split()[1]).decode()
             username, password = auth_decoded.split(':')
             if password == os.getenv('COMPUTER_USE_PASSWORD', self.KEY):
-                return super().do_GET()
-        except Exception:
-            pass
-            
-        self.do_AUTHHEAD()
+                if self.path.startswith('/streamlit'):
+                    self.proxy_request('http://localhost:8501' + self.path[9:])
+                elif self.path.startswith('/vnc'):
+                    self.proxy_request('http://localhost:6080' + self.path[4:])
+                else:
+                    return super().do_GET()
+            else:
+                self.do_AUTHHEAD()
+        except Exception as e:
+            print(f"Error handling request: {e}")
+            self.send_error(500)
+
+    def proxy_request(self, url):
+        try:
+            response = urllib.request.urlopen(url)
+            self.send_response(response.status)
+            for header, value in response.getheaders():
+                if header.lower() not in ('transfer-encoding', 'content-encoding'):
+                    self.send_header(header, value)
+            self.end_headers()
+            self.copyfile(response, self.wfile)
+        except URLError as e:
+            print(f"Error proxying request to {url}: {e}")
+            self.send_error(502)
 
 
 class HTTPServerV6(HTTPServer):

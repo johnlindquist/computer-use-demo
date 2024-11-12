@@ -59,6 +59,7 @@ RUN git clone --branch v1.5.0 https://github.com/novnc/noVNC.git /opt/noVNC && \
 # setup user
 ENV USERNAME=computeruse
 ENV HOME=/home/$USERNAME
+ENV COMPUTER_USE_PASSWORD=admin
 RUN useradd -m -s /bin/bash -d $HOME $USERNAME
 RUN echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 USER computeruse
